@@ -1,0 +1,398 @@
+<html><head><base href="https://monstermon.com/"><title>MonsterDex - Monstermon Generator</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+  body {
+    font-family: 'Press Start 2P', cursive;
+    background-image: url('/images/monsterball-pattern.png');
+    background-repeat: repeat;
+  }
+
+  .pixelated {
+    image-rendering: pixelated;
+  }
+
+  .type-badge {
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+  }
+
+  .move-card {
+    transition: transform 0.3s ease-in-out;
+  }
+
+  .move-card:hover {
+    transform: translateY(-5px);
+  }
+
+  .monsterdex-screen {
+    background: linear-gradient(45deg, #2c3e50, #34495e);
+    border: 20px solid #c0392b;
+    border-radius: 15px;
+    box-shadow: inset 0 0 15px rgba(0,0,0,0.5);
+  }
+
+  .type-menu {
+    max-height: 300px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #4a5568 #cbd5e0;
+  }
+
+  .type-menu::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .type-menu::-webkit-scrollbar-track {
+    background: #cbd5e0;
+  }
+
+  .type-menu::-webkit-scrollbar-thumb {
+    background-color: #4a5568;
+    border-radius: 4px;
+  }
+</style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+<div class="bg-white rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden monsterdex-screen">
+  <header class="bg-gradient-to-r from-red-600 to-red-700 text-white p-6 text-center">
+    <h1 class="text-4xl font-bold mb-2">MonsterDex</h1>
+    <p class="text-xl">Monstermon Generator</p>
+  </header>
+
+  <main class="p-8 bg-gray-100">
+    <form id="monstermonForm" method="POST" action="/api/create_monstermon" class="mb-8">
+      <div class="flex flex-col items-center space-y-4">
+        <div class="w-full max-w-md">
+          <label for="trainerName" class="block text-lg font-semibold mb-2 text-gray-700 text-center">Your Trainer Name:</label>
+          <input type="text" id="trainerName" name="trainerName" required class="w-full p-3 border-4 border-yellow-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-center" placeholder="Max Tamer">
+        </div>
+
+        <div class="w-full max-w-md flex items-center space-x-2">
+          <div class="flex-grow">
+            <label for="monstermonName" class="block text-lg font-semibold mb-2 text-gray-700 text-center">Monstermon Name:</label>
+            <input type="text" id="monstermonName" name="monstermonName" class="w-full p-3 border-4 border-yellow-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-center" placeholder="Enter name or leave blank">
+          </div>
+          <button type="button" id="randomNameBtn" class="bg-green-500 text-white py-3 px-4 rounded-xl hover:bg-green-600 transition transform hover:scale-105 shadow-lg mt-8">Random</button>
+        </div>
+
+        <div class="w-full max-w-md">
+          <label for="monstermonType" class="block text-lg font-semibold mb-2 text-gray-700 text-center">Preferred Type:</label>
+          <div class="relative">
+            <select id="monstermonType" name="monstermonType" class="w-full p-3 border-4 border-yellow-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none text-center">
+              <option value="">Random</option>
+            </select>
+            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+              <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" class="mt-4 bg-blue-600 text-white py-3 px-6 rounded-full hover:bg-blue-700 transition transform hover:scale-105 shadow-lg">Generate Monstermon</button>
+      </div>
+    </form>
+
+    <div id="loader" class="hidden">
+      <div class="flex justify-center items-center">
+        <div class="animate-spin rounded-full h-32 w-32 border-t-4 border-b-4 border-blue-600"></div>
+      </div>
+      <p class="text-center mt-4 text-lg text-gray-700">Discovering a new Monstermon...</p>
+    </div>
+
+    <div id="monstermonDisplay" class="hidden bg-white rounded-2xl p-6 shadow-inner">
+      <div class="flex flex-col lg:flex-row">
+        <div class="w-full lg:w-1/2 pr-4 mb-6 lg:mb-0">
+          <div class="bg-gray-200 rounded-xl p-4 shadow-inner" id="monstermonImageContainer">
+            <!-- Monstermon image will be dynamically inserted here -->
+          </div>
+        </div>
+        <div class="w-full lg:w-1/2">
+          <h2 id="monstermonName" class="text-3xl font-bold mb-4 text-gray-800"></h2>
+          <p id="monstermonDescription" class="mb-4 text-gray-600"></p>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <h3 class="font-semibold text-gray-700">Type:</h3>
+              <div id="monstermonTypes" class="flex flex-wrap gap-2 mt-2"></div>
+            </div>
+            <div>
+              <h3 class="font-semibold text-gray-700">Abilities:</h3>
+              <ul id="monstermonAbilities" class="list-disc list-inside mt-2 text-gray-600"></ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-8">
+        <h3 class="text-2xl font-semibold mb-4 text-gray-800">Stats</h3>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div>
+            <canvas id="statsBarChart"></canvas>
+          </div>
+          <div>
+            <canvas id="statsRadarChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-8">
+        <h3 class="text-2xl font-semibold mb-4 text-gray-800">Moves</h3>
+        <div id="monstermonMoves" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+      </div>
+
+      <div class="mt-8">
+        <h3 class="text-2xl font-semibold mb-4 text-gray-800">Additional Info</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-600">
+          <div>
+            <p><strong>Height:</strong> <span id="monstermonHeight"></span></p>
+            <p><strong>Weight:</strong> <span id="monstermonWeight"></span></p>
+            <p><strong>Category:</strong> <span id="monstermonCategory"></span></p>
+          </div>
+          <div>
+            <p><strong>Habitat:</strong> <span id="monstermonHabitat"></span></p>
+            <p><strong>Weakness:</strong> <span id="monstermonWeakness"></span></p>
+            <p><strong>Evolution:</strong> <span id="monstermonEvolution"></span></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+const typeColors = {
+  normal: 'bg-gray-400',
+  fire: 'bg-red-500',
+  water: 'bg-blue-500',
+  electric: 'bg-yellow-400',
+  grass: 'bg-green-500',
+  ice: 'bg-blue-200',
+  fighting: 'bg-red-700',
+  poison: 'bg-purple-500',
+  ground: 'bg-yellow-700',
+  flying: 'bg-indigo-400',
+  psychic: 'bg-pink-500',
+  bug: 'bg-green-400',
+  rock: 'bg-yellow-600',
+  ghost: 'bg-purple-700',
+  dragon: 'bg-indigo-700',
+  dark: 'bg-gray-700',
+  steel: 'bg-gray-500',
+  fairy: 'bg-pink-300'
+};
+
+let statsBarChart, statsRadarChart;
+
+// Populate the Monstermon type dropdown
+const monstermonTypeSelect = document.getElementById('monstermonType');
+Object.keys(typeColors).forEach(type => {
+  const option = document.createElement('option');
+  option.value = type;
+  option.textContent = type.charAt(0).toUpperCase() + type.slice(1);
+  monstermonTypeSelect.appendChild(option);
+});
+
+document.getElementById('monstermonForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const trainerName = document.getElementById('trainerName').value;
+  const monstermonName = document.getElementById('monstermonName').value;
+  const monstermonType = document.getElementById('monstermonType').value;
+
+  document.getElementById('loader').classList.remove('hidden');
+  document.getElementById('monstermonDisplay').classList.add('hidden');
+
+  try {
+    const response = await fetch('/api/create_monstermon', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trainerName, monstermonName, monstermonType })
+    });
+    const monstermon = await response.json();
+    displayMonstermon(monstermon);
+    generateMonstermonImage(monstermon);
+  } catch (error) {
+    console.error('Error:', error);
+    alert('An error occurred while creating your Monstermon. Please try again.');
+  } finally {
+    document.getElementById('loader').classList.add('hidden');
+  }
+});
+
+document.getElementById('randomNameBtn').addEventListener('click', () => {
+  const randomName = generateRandomName();
+  document.getElementById('monstermonName').value = randomName;
+});
+
+function generateRandomName() {
+  const prefixes = ['Giga', 'Mega', 'Ultra', 'Hyper', 'Cyber', 'Dino', 'Techno', 'Quantum', 'Cosmic', 'Mystic'];
+  const suffixes = ['zord', 'tron', 'rex', 'saurus', 'blade', 'fang', 'claw', 'storm', 'nova', 'pulse'];
+  const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+  const suffix = suffixes[Math.floor(Math.random() * suffixes.length)];
+  return prefix + suffix;
+}
+
+function displayMonstermon(monstermon) {
+  document.getElementById('monstermonDisplay').classList.remove('hidden');
+  document.getElementById('monstermonName').textContent = monstermon.name;
+  document.getElementById('monstermonDescription').textContent = monstermon.description;
+
+  const typesDiv = document.getElementById('monstermonTypes');
+  typesDiv.innerHTML = '';
+  monstermon.types.forEach(type => {
+    const badge = document.createElement('span');
+    badge.textContent = type;
+    badge.className = `${typeColors[type.toLowerCase()] || 'bg-gray-500'} text-white px-3 py-1 rounded-full text-sm type-badge`;
+    typesDiv.appendChild(badge);
+  });
+
+  const abilitiesList = document.getElementById('monstermonAbilities');
+  abilitiesList.innerHTML = '';
+  monstermon.abilities.forEach(ability => {
+    const li = document.createElement('li');
+    li.textContent = ability.name;
+    li.title = ability.description;
+    li.className = 'cursor-help';
+    abilitiesList.appendChild(li);
+  });
+
+  updateStatsCharts(monstermon.stats);
+
+  const movesDiv = document.getElementById('monstermonMoves');
+  movesDiv.innerHTML = '';
+  monstermon.moves.forEach(move => {
+    movesDiv.innerHTML += `
+      <div class="border-2 border-gray-200 p-4 rounded-xl bg-white shadow-md hover:shadow-lg transition move-card">
+        <h4 class="font-semibold text-lg mb-2">${move.name}</h4>
+        <p class="text-sm mb-1"><span class="${typeColors[move.type.toLowerCase()] || 'bg-gray-500'} text-white px-2 py-1 rounded-full">${move.type}</span></p>
+        <p class="text-sm mb-1">Power: ${move.power}</p>
+        <p class="text-sm mb-1">Accuracy: ${move.accuracy}</p>
+        <p class="text-sm text-gray-600">${move.description}</p>
+      </div>
+    `;
+  });
+
+  // Additional Info
+  document.getElementById('monstermonHeight').textContent = monstermon.height;
+  document.getElementById('monstermonWeight').textContent = monstermon.weight;
+  document.getElementById('monstermonCategory').textContent = monstermon.category;
+  document.getElementById('monstermonHabitat').textContent = monstermon.habitat;
+  document.getElementById('monstermonWeakness').textContent = monstermon.weakness.join(', ');
+  document.getElementById('monstermonEvolution').textContent = monstermon.evolution_chain.join(' → ');
+}
+
+function generateMonstermonImage(monstermon) {
+  const imageContainer = document.getElementById('monstermonImageContainer');
+  imageContainer.innerHTML = ''; // Clear previous image
+
+  const img = document.createElement('img');
+  img.className = 'w-full h-64 object-contain';
+  img.src = `/monstermon/${monstermon.name}.jpg`; // This would be the endpoint for the image
+
+  // Generate a detailed alt text description for a cartoon-style Monstermon
+  const altText = `A cartoon-style ${monstermon.types.join('/')} type Monstermon named ${monstermon.name}. 
+    It has a ${getRandomBodyShape()} body with ${getRandomColorDescription()} coloration. 
+    Its features include ${getRandomFeatures()}. 
+    The Monstermon's appearance is inspired by ${getRandomInspirationSource()}, 
+    with a ${getRandomExpression()} expression. 
+    The overall style is vibrant and exaggerated, with bold outlines, 
+    expressive eyes, and comical proportions typical of cartoon characters. 
+    The Monstermon has a playful and endearing quality, 
+    making it appealing to both children and adults.`;
+
+  img.alt = altText;
+
+  imageContainer.appendChild(img);
+}
+
+function getRandomBodyShape() {
+  const shapes = ['round', 'elongated', 'cubical', 'star-shaped', 'blob-like', 'spiky', 'fluffy', 'sleek'];
+  return shapes[Math.floor(Math.random() * shapes.length)];
+}
+
+function getRandomColorDescription() {
+  const colors = ['vibrant', 'pastel', 'neon', 'rainbow', 'metallic', 'tie-dye', 'polka-dotted', 'striped'];
+  return colors[Math.floor(Math.random() * colors.length)];
+}
+
+function getRandomFeatures() {
+  const features = ['oversized eyes', 'tiny limbs', 'exaggerated expressions', 'comical accessories', 'swirly patterns', 'floating appendages', 'squeezable cheeks', 'spring-like tail'];
+  return features[Math.floor(Math.random() * features.length)];
+}
+
+function getRandomInspirationSource() {
+  const inspirations = ['classic cartoon characters', 'everyday objects', 'popular emojis', 'wacky inventions', 'food items', 'mythical creatures', 'pop culture icons', 'abstract art'];
+  return inspirations[Math.floor(Math.random() * inspirations.length)];
+}
+
+function getRandomExpression() {
+  const expressions = ['goofy', 'surprised', 'mischievous', 'adorable', 'determined', 'confused', 'excited', 'sleepy'];
+  return expressions[Math.floor(Math.random() * expressions.length)];
+}
+
+function updateStatsCharts(stats) {
+  const ctx1 = document.getElementById('statsBarChart').getContext('2d');
+  const ctx2 = document.getElementById('statsRadarChart').getContext('2d');
+
+  const labels = Object.keys(stats);
+  const data = Object.values(stats);
+
+  if (statsBarChart) statsBarChart.destroy();
+  if (statsRadarChart) statsRadarChart.destroy();
+
+  statsBarChart = new Chart(ctx1, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Stats',
+        data: data,
+        backgroundColor: 'rgba(54, 162, 235, 0.5)',
+        borderColor: 'rgba(54, 162, 235, 1)',
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 255
+        }
+      }
+    }
+  });
+
+  statsRadarChart = new Chart(ctx2, {
+    type: 'radar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Stats',
+        data: data,
+        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+        borderColor: 'rgba(255, 99, 132, 1)',
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        r: {
+          angleLines: {
+            display: false
+          },
+          suggestedMin: 0,
+          suggestedMax: 255
+        }
+      }
+    }
+  });
+}
+</script>
+
+</body></html>
